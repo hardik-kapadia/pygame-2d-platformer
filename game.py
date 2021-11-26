@@ -87,8 +87,6 @@ def reset_level(level):
         pickle_in = open(f'levels/level{level}.txt', 'r')
         # world_data = pickle.load(pickle_in)
         world_data = get_data_from_file(pickle_in)
-        print('for level -', level)
-        print(world_data)
 
     world = World(world_data)
     # create dummy coin for showing the score
@@ -418,8 +416,6 @@ if path.exists(f'levels/level{level}.txt'):
     pickle_in = open(f'levels/level{level}.txt', 'r')
     # world_data = pickle.load(pickle_in)
     world_data = get_data_from_file(pickle_in)
-    print('for level -', level)
-    print(world_data)
     
 world = World(world_data)
 
