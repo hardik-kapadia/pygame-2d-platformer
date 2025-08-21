@@ -1,8 +1,16 @@
+import sys
+import asyncio
 import pygame
 from pygame.locals import *
 from pygame import mixer
 import pickle
 from os import path
+
+if sys.platform == 'emscripten':
+    try:
+        pygame.mixer.SoundPatch()
+    except:
+        pass
 
 pygame.mixer.pre_init(44100, -16, 2, 512)
 mixer.init()
@@ -17,60 +25,61 @@ screen_height = 800
 screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption('Platformer')
 
-
 # define font
 font = pygame.font.SysFont('Bauhaus 93', 70)
 font_score = pygame.font.SysFont('Bauhaus 93', 30)
 
-
 # define game variables
 tile_size = 40
-game_over = 0
-main_menu = True
-level = 0
-max_levels = 4
-score = 0
 
+game_state = {
+    "game_over": 0,
+    "main_menu": True,
+    "level": 0,
+    "max_levels": 4,
+    "score": 0,
+    "world": None,
+    "world_data": []
+}
 
 # define colours
 white = (255, 255, 255)
 blue = (0, 0, 255)
 
-
 # load images
-sun_img = pygame.image.load('img/sun.png')
-bg_img = pygame.image.load('img/sky.png')
-restart_img = pygame.image.load('img/restart_btn.png')
-start_img = pygame.image.load('img/start_btn.png')
-exit_img = pygame.image.load('img/exit_btn.png')
+sun_img = pygame.image.load('assets/img/sun.png')
+bg_img = pygame.image.load('assets/img/sky.png')
+restart_img = pygame.image.load('assets/img/restart_btn.png')
+start_img = pygame.image.load('assets/img/start_btn.png')
+exit_img = pygame.image.load('assets/img/exit_btn.png')
 
 # load sounds
-pygame.mixer.music.load('img/music.wav')
+pygame.mixer.music.load('assets/wav/music.wav')
 pygame.mixer.music.play(-1, 0.0, 5000)
-coin_fx = pygame.mixer.Sound('img/coin.wav')
+coin_fx = pygame.mixer.Sound('assets/wav/coin.wav')
 coin_fx.set_volume(0.5)
-jump_fx = pygame.mixer.Sound('img/jump.wav')
+jump_fx = pygame.mixer.Sound('assets/wav/jump.wav')
 jump_fx.set_volume(0.5)
-game_over_fx = pygame.mixer.Sound('img/game_over.wav')
+game_over_fx = pygame.mixer.Sound('assets/wav/game_over.wav')
 game_over_fx.set_volume(0.5)
 
 
 def draw_text(text, font, text_col, x, y):
     img = font.render(text, True, text_col)
     screen.blit(img, (x, y))
-    
-def get_data_from_file(file):
 
-    world_data = []
+
+def get_data_from_file(file):
+    game_state['world_data'] = []
     for l in file:
         temp = []
         s_temp = l.strip().split(',')
-    
+
         temp = [int(s) for s in s_temp]
-    
-        world_data.append(temp)
-        
-    return world_data
+
+        game_state['world_data'].append(temp)
+
+    return game_state['world_data']
 
 
 # function to reset level
@@ -83,12 +92,12 @@ def reset_level(level):
     exit_group.empty()
 
     # load in level data and create world
-    if path.exists(f'levels/level{level}.txt'):
-        pickle_in = open(f'levels/level{level}.txt', 'r')
+    if path.exists(f'assets/levels/level{level}.txt'):
+        pickle_in = open(f'assets/levels/level{level}.txt', 'r')
         # world_data = pickle.load(pickle_in)
-        world_data = get_data_from_file(pickle_in)
+        game_state['world_data'] = get_data_from_file(pickle_in)
 
-    world = World(world_data)
+    world = World(game_state['world_data'])
     # create dummy coin for showing the score
     score_coin = Coin(tile_size // 2, tile_size // 2)
     coin_group.add(score_coin)
@@ -178,7 +187,7 @@ class Player():
 
             # check for collision
             self.in_air = True
-            for tile in world.tile_list:
+            for tile in game_state['world'].tile_list:
                 # check for collision in x direction
                 if tile[1].colliderect(self.rect.x + dx, self.rect.y, self.width, self.height):
                     dx = 0
@@ -250,12 +259,12 @@ class Player():
         self.index = 0
         self.counter = 0
         for num in range(1, 5):
-            img_right = pygame.image.load(f'img/guy{num}.png')
+            img_right = pygame.image.load(f'assets/img/guy{num}.png')
             img_right = pygame.transform.scale(img_right, (40, 80))
             img_left = pygame.transform.flip(img_right, True, False)
             self.images_right.append(img_right)
             self.images_left.append(img_left)
-        self.dead_image = pygame.image.load('img/ghost.png')
+        self.dead_image = pygame.image.load('assets/img/ghost.png')
         self.image = self.images_right[self.index]
         self.rect = self.image.get_rect()
         self.rect.x = x
@@ -273,8 +282,8 @@ class World():
         self.tile_list = []
 
         # load images
-        dirt_img = pygame.image.load('img/dirt.png')
-        grass_img = pygame.image.load('img/grass.png')
+        dirt_img = pygame.image.load('assets/img/dirt.png')
+        grass_img = pygame.image.load('assets/img/grass.png')
 
         row_count = 0
         for row in data:
@@ -331,7 +340,7 @@ class World():
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, x, y):
         pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.image.load('img/blob.png')
+        self.image = pygame.image.load('assets/img/blob.png')
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
@@ -349,7 +358,7 @@ class Enemy(pygame.sprite.Sprite):
 class Platform(pygame.sprite.Sprite):
     def __init__(self, x, y, move_x, move_y):
         pygame.sprite.Sprite.__init__(self)
-        img = pygame.image.load('img/platform.png')
+        img = pygame.image.load('assets/img/platform.png')
         self.image = pygame.transform.scale(img, (tile_size, tile_size // 2))
         self.rect = self.image.get_rect()
         self.rect.x = x
@@ -371,7 +380,7 @@ class Platform(pygame.sprite.Sprite):
 class Lava(pygame.sprite.Sprite):
     def __init__(self, x, y):
         pygame.sprite.Sprite.__init__(self)
-        img = pygame.image.load('img/lava.png')
+        img = pygame.image.load('assets/img/lava.png')
         self.image = pygame.transform.scale(img, (tile_size, tile_size // 2))
         self.rect = self.image.get_rect()
         self.rect.x = x
@@ -381,7 +390,7 @@ class Lava(pygame.sprite.Sprite):
 class Coin(pygame.sprite.Sprite):
     def __init__(self, x, y):
         pygame.sprite.Sprite.__init__(self)
-        img = pygame.image.load('img/coin.png')
+        img = pygame.image.load('assets/img/coin.png')
         self.image = pygame.transform.scale(
             img, (tile_size // 2, tile_size // 2))
         self.rect = self.image.get_rect()
@@ -391,7 +400,7 @@ class Coin(pygame.sprite.Sprite):
 class Exit(pygame.sprite.Sprite):
     def __init__(self, x, y):
         pygame.sprite.Sprite.__init__(self)
-        img = pygame.image.load('img/exit.png')
+        img = pygame.image.load('assets/img/exit.png')
         self.image = pygame.transform.scale(
             img, (tile_size, int(tile_size * 1.5)))
         self.rect = self.image.get_rect()
@@ -412,87 +421,92 @@ score_coin = Coin(tile_size // 2, tile_size // 2)
 coin_group.add(score_coin)
 
 # load in level data and create world
-if path.exists(f'levels/level{level}.txt'):
-    pickle_in = open(f'levels/level{level}.txt', 'r')
+if path.exists(f'assets/levels/level{game_state['level']}.txt'):
+    pickle_in = open(f'assets/levels/level{game_state['level']}.txt', 'r')
     # world_data = pickle.load(pickle_in)
-    world_data = get_data_from_file(pickle_in)
-    
-world = World(world_data)
+    game_state['world_data'] = get_data_from_file(pickle_in)
 
+game_state['world'] = World(game_state['world_data'])
 
 # create buttons
-restart_button = Button(screen_width // 2 - 50,
-                        screen_height // 2 + 100, restart_img)
+restart_button = Button(screen_width // 2 - 50, screen_height // 2 + 100, restart_img)
 start_button = Button(screen_width // 2 - 350, screen_height // 2, start_img)
 exit_button = Button(screen_width // 2 + 150, screen_height // 2, exit_img)
 
 
-run = True
-while run:
+async def main():
+    """Main gameplay loop"""
 
-    clock.tick(fps)
+    run = True
+    while run:
 
-    screen.blit(bg_img, (0, 0))
-    screen.blit(sun_img, (100, 100))
+        clock.tick(fps)
 
-    if main_menu == True:
-        if exit_button.draw():
-            run = False
-        if start_button.draw():
-            main_menu = False
-    else:
-        world.draw()
+        screen.blit(bg_img, (0, 0))
+        screen.blit(sun_img, (100, 100))
 
-        if game_over == 0:
-            blob_group.update()
-            platform_group.update()
-            # update score
-            # check if a coin has been collected
-            if pygame.sprite.spritecollide(player, coin_group, True):
-                score += 1
-                coin_fx.play()
-            draw_text('X ' + str(score), font_score, white, tile_size - 10, 10)
+        if game_state['main_menu']:
+            if exit_button.draw():
+                run = False
+            if start_button.draw():
+                game_state['main_menu'] = False
+        else:
 
-        blob_group.draw(screen)
-        platform_group.draw(screen)
-        lava_group.draw(screen)
-        coin_group.draw(screen)
-        exit_group.draw(screen)
+            game_state['world'].draw()
 
-        game_over = player.update(game_over)
+            if game_state['game_over'] == 0:
+                blob_group.update()
+                platform_group.update()
+                # update score
+                # check if a coin has been collected
+                if pygame.sprite.spritecollide(player, coin_group, True):
+                    game_state['score'] += 1
+                    coin_fx.play()
+                draw_text('X ' + str(game_state['score']), font_score, white, tile_size - 10, 10)
 
-        # if player has died
-        if game_over == -1:
-            if restart_button.draw():
-                world_data = []
-                world = reset_level(level)
-                game_over = 0
-                score = 0
+            blob_group.draw(screen)
+            platform_group.draw(screen)
+            lava_group.draw(screen)
+            coin_group.draw(screen)
+            exit_group.draw(screen)
 
-        # if player has completed the level
-        if game_over == 1:
-            # reset game and go to next level
-            level += 1
-            if level <= max_levels:
-                # reset level
-                world_data = []
-                world = reset_level(level)
-                game_over = 0
-            else:
-                draw_text('YOU WIN!', font, blue,
-                          (screen_width // 2) - 140, screen_height // 2)
+            game_state['game_over'] = player.update(game_state['game_over'])
+
+            # if player has died
+            if game_state['game_over'] == -1:
                 if restart_button.draw():
-                    level = 1
-                    # reset level
                     world_data = []
-                    world = reset_level(level)
-                    game_over = 0
-                    score = 0
+                    game_state['world'] = reset_level(game_state['level'])
+                    game_state['game_over'] = 0
+                    game_state['score'] = 0
 
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            run = False
+            # if player has completed the level
+            if game_state['game_over'] == 1:
+                # reset game and go to next level
+                game_state['level'] += 1
+                if game_state['level'] <= game_state['max_levels']:
+                    # reset level
+                    game_state['world_data'] = []
+                    game_state['world'] = reset_level(game_state['level'])
+                    game_state['game_over'] = 0
+                else:
+                    draw_text('YOU WIN!', font, blue,
+                              (screen_width // 2) - 140, screen_height // 2)
+                    if restart_button.draw():
+                        game_state['level'] = 1
+                        # reset level
+                        game_state['world_data'] = []
+                        game_state['world'] = reset_level(game_state['level'])
+                        game_state['game_over'] = 0
+                        game_state['score'] = 0
 
-    pygame.display.update()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
 
-pygame.quit()
+        pygame.display.update()
+
+    pygame.quit()
+
+
+asyncio.run(main())
