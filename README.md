@@ -90,6 +90,7 @@ Scope :
 - Develop AI to automatically generate levels
 - Have bigger levels with camera panning
 - Add rewards and progression
+- Working on deploying live
 
 ---
 
