@@ -504,6 +504,7 @@ async def main():
             if event.type == pygame.QUIT:
                 run = False
 
+        await asyncio.sleep(0)
         pygame.display.update()
 
     pygame.quit()
